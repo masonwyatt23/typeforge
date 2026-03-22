@@ -43,6 +43,7 @@ export default function HeroPage() {
   const [mode, setMode] = useState<HeroMode>("word-drop");
   const [duration, setDuration] = useState(60);
   const [results, setResults] = useState<GameResults | null>(null);
+  const [gameKey, setGameKey] = useState(0); // force remount on restart
 
   const handleComplete = useCallback((r: GameResults) => {
     setResults(r);
@@ -50,6 +51,7 @@ export default function HeroPage() {
   }, []);
 
   const handleRestart = useCallback(() => {
+    setGameKey((k) => k + 1); // force fresh component mount
     setPhase("playing");
     setResults(null);
   }, []);
@@ -159,8 +161,8 @@ export default function HeroPage() {
                   )}
                 </GlassPanel>
 
-                {/* Duration select */}
-                <div className="flex gap-2">
+                {/* Duration select (Word Drop only) */}
+                {mode === "word-drop" && <div className="flex gap-2">
                   {[30, 60, 90].map((d) => (
                     <button
                       key={d}
@@ -175,7 +177,7 @@ export default function HeroPage() {
                       {d}s
                     </button>
                   ))}
-                </div>
+                </div>}
 
                 <Button
                   variant="primary"
@@ -198,9 +200,9 @@ export default function HeroPage() {
                 className="w-full"
               >
                 {mode === "word-drop" ? (
-                  <WordDrop onComplete={handleComplete} duration={duration} />
+                  <WordDrop key={gameKey} onComplete={handleComplete} duration={duration} />
                 ) : (
-                  <RhythmType onComplete={handleComplete} bpm={180} />
+                  <RhythmType key={gameKey} onComplete={handleComplete} bpm={180} />
                 )}
               </motion.div>
             )}

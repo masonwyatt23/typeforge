@@ -127,6 +127,11 @@ export function updateRhythm(
     }
   }
 
+  // Advance nextExpectedIndex past already-resolved notes
+  while (nextExpectedIndex < updatedNotes.length && updatedNotes[nextExpectedIndex].state !== "upcoming") {
+    nextExpectedIndex++;
+  }
+
   // Check if game is complete
   const isComplete = newCursorPos > state.text.length + 3;
 

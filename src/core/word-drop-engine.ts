@@ -17,6 +17,7 @@ export interface FallingWord {
 
 export interface WordDropState {
   words: FallingWord[];
+  nextWordId: number;
   score: number;
   combo: number;
   maxCombo: number;
@@ -82,11 +83,10 @@ const WORD_POOL = [
   "combo", "laser", "pixel", "turbo", "blaze", "flash", "ultra", "prime",
 ];
 
-let nextWordId = 0;
-
 export function createWordDropState(): WordDropState {
   return {
     words: [],
+    nextWordId: 0,
     score: 0,
     combo: 0,
     maxCombo: 0,
@@ -142,8 +142,12 @@ export function updateWordDrop(
     BASE_SPAWN_INTERVAL - (state.level - 1) * SPAWN_INTERVAL_DECREASE
   );
 
-  // Update falling words
+  // Update all words (including missed/hit for cleanup)
   const updatedWords = state.words.map((w) => {
+    if (w.state === "hit" || w.state === "missed") {
+      // Keep moving so cleanup filter can remove them when off-screen
+      return { ...w, y: w.y + speed * dt };
+    }
     if (w.state !== "falling" && w.state !== "active") return w;
     return { ...w, y: w.y + speed * dt };
   });
@@ -168,10 +172,10 @@ export function updateWordDrop(
   );
 
   // Spawn new words
-  let { wordsSpawned, lastSpawnTime, level } = state;
+  let { wordsSpawned, lastSpawnTime, level, nextWordId } = state;
   if (now - lastSpawnTime >= spawnInterval) {
     const word: FallingWord = {
-      id: nextWordId++,
+      id: nextWordId++,  // state-based, no module-level singleton
       text: getRandomWord(),
       lane: getRandomLane(activeWords),
       y: -0.05,
@@ -207,6 +211,7 @@ export function updateWordDrop(
       maxCombo: Math.max(state.maxCombo, combo),
       misses,
       activeWordId,
+      nextWordId,
       level,
       wordsSpawned,
       lastSpawnTime,
