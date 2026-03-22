@@ -104,7 +104,8 @@ export function startWordDrop(state: WordDropState, now: number): WordDropState 
     ...createWordDropState(),
     isPlaying: true,
     startTime: now,
-    lastSpawnTime: now,
+    // Set lastSpawnTime in the past so the first word spawns immediately
+    lastSpawnTime: now - BASE_SPAWN_INTERVAL,
   };
 }
 

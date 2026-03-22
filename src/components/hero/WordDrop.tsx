@@ -17,20 +17,11 @@ import {
   getWordDropResults,
 } from "@/core/word-drop-engine";
 import { useAudio } from "@/hooks/use-audio";
-import { useParticles } from "@/hooks/use-particles";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 
 interface WordDropProps {
   onComplete: (results: ReturnType<typeof getWordDropResults>) => void;
-  duration?: number; // game duration in seconds (default 60)
+  duration?: number;
 }
-
-const LANE_COLORS = [
-  "from-accent-cyan to-accent-blue",
-  "from-accent-blue to-accent-purple",
-  "from-accent-purple to-accent-pink",
-  "from-accent-pink to-accent-cyan",
-];
 
 const LANE_GLOW_COLORS = [
   "rgba(34, 211, 238, 0.3)",
@@ -39,28 +30,6 @@ const LANE_GLOW_COLORS = [
   "rgba(236, 72, 153, 0.3)",
 ];
 
-function HitRatingPopup({ rating, x, y }: { rating: HitRating; x: number; y: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 1, y: 0, scale: 1.2 }}
-      animate={{ opacity: 0, y: -40, scale: 0.8 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.6 }}
-      className="absolute pointer-events-none z-30"
-      style={{ left: x, top: y }}
-    >
-      <span
-        className={cn(
-          "font-[family-name:var(--font-accent)] text-lg font-bold uppercase tracking-wider",
-          getHitRatingColor(rating)
-        )}
-      >
-        {rating}
-      </span>
-    </motion.div>
-  );
-}
-
 export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
   const [gameState, setGameState] = useState<WordDropState>(createWordDropState);
   const [timeLeft, setTimeLeft] = useState(duration);
@@ -68,6 +37,7 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
   const [levelUpFlash, setLevelUpFlash] = useState<number | null>(null);
   const [phase, setPhase] = useState<"countdown" | "playing" | "ended">("countdown");
   const [countdown, setCountdown] = useState(3);
+  const [isFocused, setIsFocused] = useState(false);
 
   const stateRef = useRef(gameState);
   stateRef.current = gameState;
@@ -78,55 +48,61 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
   const popupIdRef = useRef(0);
 
   const { playSound, initAudio } = useAudio();
-  const { spawn } = useParticles();
 
-  // Countdown
+  // Focus the input
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Countdown: 3 -> 2 -> 1 -> "GO" (0) -> start
   useEffect(() => {
     if (phase !== "countdown") return;
-    if (countdown <= 0) {
+    if (countdown < 0) {
+      // Start the game
       setPhase("playing");
       const now = Date.now();
       setGameState(startWordDrop(createWordDropState(), now));
       lastTimeRef.current = performance.now();
+      focusInput();
       return;
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 700);
+    const t = setTimeout(() => setCountdown((c) => c - 1), 800);
     return () => clearTimeout(t);
-  }, [phase, countdown]);
+  }, [phase, countdown, focusInput]);
+
+  // Keep input focused during gameplay
+  useEffect(() => {
+    if (phase !== "playing") return;
+    focusInput();
+    const interval = setInterval(focusInput, 1000);
+    return () => clearInterval(interval);
+  }, [phase, focusInput]);
 
   // Process effects
   const processEffects = useCallback(
     (effects: WordDropEffect[]) => {
       for (const effect of effects) {
         switch (effect.type) {
-          case "hit": {
+          case "hit":
             playSound("keystroke");
             if (effect.rating === "perfect") {
-              playSound("combo-milestone", { pitch: 1.5 });
+              playSound("word-complete");
             }
-            // Spawn particles at the word's lane position
             if (effect.word && containerRef.current) {
               const rect = containerRef.current.getBoundingClientRect();
               const laneWidth = rect.width / 4;
-              const x = rect.left + effect.word.lane * laneWidth + laneWidth / 2;
-              const y = rect.top + rect.height * 0.85;
-              spawn("wordBurst", x, y, effect.rating === "perfect" ? 3 : 1.5);
-
-              setHitPopups((p) => [
-                ...p,
-                { id: popupIdRef.current++, rating: effect.rating!, x: laneWidth * effect.word!.lane + laneWidth / 2 - 30, y: rect.height * 0.78 },
-              ]);
-              setTimeout(() => {
-                setHitPopups((p) => p.filter((pp) => pp.id !== popupIdRef.current - 1));
-              }, 600);
+              const x = effect.word.lane * laneWidth + laneWidth / 2;
+              const y = rect.height * 0.78;
+              const id = popupIdRef.current++;
+              setHitPopups((p) => [...p.slice(-5), { id, rating: effect.rating!, x, y }]);
+              setTimeout(() => setHitPopups((p) => p.filter((pp) => pp.id !== id)), 700);
             }
             break;
-          }
           case "miss":
             playSound("error");
             break;
           case "combo_milestone":
-            playSound("combo-milestone", { pitch: 1 + (effect.combo ?? 0) * 0.005 });
+            playSound("combo-milestone", { pitch: 1.2 });
             break;
           case "level_up":
             playSound("level-up");
@@ -136,7 +112,7 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
         }
       }
     },
-    [playSound, spawn]
+    [playSound]
   );
 
   // Game loop
@@ -144,7 +120,8 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
     if (phase !== "playing") return;
 
     const loop = (time: number) => {
-      const delta = time - lastTimeRef.current;
+      if (lastTimeRef.current === 0) lastTimeRef.current = time;
+      const delta = Math.min(time - lastTimeRef.current, 50); // cap delta at 50ms
       lastTimeRef.current = time;
 
       const { state: newState, effects } = updateWordDrop(stateRef.current, delta, Date.now());
@@ -154,6 +131,7 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
       animFrameRef.current = requestAnimationFrame(loop);
     };
 
+    lastTimeRef.current = 0; // will be set on first frame
     animFrameRef.current = requestAnimationFrame(loop);
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
@@ -168,7 +146,7 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
       onComplete(getWordDropResults(stateRef.current));
       return;
     }
-    const t = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
+    const t = setTimeout(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearTimeout(t);
   }, [phase, timeLeft, onComplete]);
 
@@ -195,22 +173,26 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
     [phase, initAudio, processEffects]
   );
 
-  // Auto-focus
-  useEffect(() => {
-    if (phase === "playing") inputRef.current?.focus();
-  }, [phase]);
+  const handleContainerClick = useCallback(() => {
+    initAudio();
+    focusInput();
+  }, [initAudio, focusInput]);
 
   return (
     <div
       ref={containerRef}
-      className="relative w-full max-w-2xl mx-auto select-none"
-      onClick={() => inputRef.current?.focus()}
+      className="relative w-full max-w-2xl mx-auto select-none cursor-pointer"
+      onClick={handleContainerClick}
     >
+      {/* Hidden but focusable input */}
       <input
         ref={inputRef}
         type="text"
-        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+        className="fixed top-0 left-0 opacity-0 pointer-events-none"
+        style={{ width: 1, height: 1 }}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -242,64 +224,70 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <div className="text-center">
-            <span className="font-[family-name:var(--font-accent)] text-lg font-bold text-accent-cyan">
-              LV{gameState.level}
-            </span>
-          </div>
-          <div className="text-center">
-            <span className={cn(
-              "font-[family-name:var(--font-accent)] text-2xl font-bold tabular-nums",
-              timeLeft <= 10 ? "text-error animate-pulse" : "text-text-primary"
-            )}>
-              {timeLeft}s
-            </span>
-          </div>
+          <span className="font-[family-name:var(--font-accent)] text-lg font-bold text-accent-cyan">
+            LV{gameState.level}
+          </span>
+          <span className={cn(
+            "font-[family-name:var(--font-accent)] text-2xl font-bold tabular-nums",
+            timeLeft <= 10 ? "text-error animate-pulse" : "text-text-primary"
+          )}>
+            {timeLeft}s
+          </span>
         </div>
       </div>
 
       {/* Game field */}
-      <GlassPanel intense className="relative overflow-hidden" style={{ height: "460px" }}>
+      <div className="glass-intense rounded-2xl relative overflow-hidden" style={{ height: "460px" }}>
         {/* Lane dividers */}
-        <div className="absolute inset-0 flex">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex-1 border-r border-white/[0.04] last:border-r-0" />
-          ))}
-        </div>
+        {[1, 2, 3].map((i) => (
+          <div
+            key={i}
+            className="absolute top-0 bottom-0 w-[1px] bg-white/[0.04]"
+            style={{ left: `${i * 25}%` }}
+          />
+        ))}
 
         {/* Strike zone */}
-        <div
-          className="absolute left-0 right-0 h-[2px] z-10"
-          style={{ top: "85%" }}
-        >
-          <div className="w-full h-full bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-20 blur-md" />
+        <div className="absolute left-0 right-0 z-10" style={{ top: "85%" }}>
+          <div className="w-full h-[2px] bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-60" />
+          <div className="absolute inset-x-0 -top-1 h-1 bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-15 blur-md" />
         </div>
 
-        {/* Strike zone glow area */}
+        {/* Strike zone highlight area */}
         <div
-          className="absolute left-0 right-0 pointer-events-none z-5"
-          style={{ top: "78%", height: "14%" }}
-        >
-          <div className="w-full h-full bg-gradient-to-b from-transparent via-white/[0.02] to-transparent" />
-        </div>
+          className="absolute left-0 right-0 opacity-30"
+          style={{ top: "73%", height: "24%", background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.02), transparent)" }}
+        />
 
         {/* Falling words */}
-        <AnimatePresence>
-          {gameState.words.map((word) => (
-            <FallingWordComponent
-              key={word.id}
-              word={word}
-              currentInput={gameState.currentInput}
-              isActive={word.id === gameState.activeWordId}
-            />
-          ))}
-        </AnimatePresence>
+        {gameState.words.map((word) => (
+          <FallingWordEl
+            key={word.id}
+            word={word}
+            currentInput={gameState.currentInput}
+            isActive={word.id === gameState.activeWordId}
+          />
+        ))}
 
         {/* Hit rating popups */}
         <AnimatePresence>
           {hitPopups.map((popup) => (
-            <HitRatingPopup key={popup.id} rating={popup.rating} x={popup.x} y={popup.y} />
+            <motion.div
+              key={popup.id}
+              initial={{ opacity: 1, y: 0, scale: 1.2 }}
+              animate={{ opacity: 0, y: -40, scale: 0.8 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.6 }}
+              className="absolute pointer-events-none z-30"
+              style={{ left: popup.x - 30, top: popup.y }}
+            >
+              <span className={cn(
+                "font-[family-name:var(--font-accent)] text-lg font-bold uppercase tracking-wider",
+                getHitRatingColor(popup.rating)
+              )}>
+                {popup.rating}
+              </span>
+            </motion.div>
           ))}
         </AnimatePresence>
 
@@ -309,14 +297,12 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 1.1 }}
+              exit={{ opacity: 0 }}
               className="absolute inset-0 flex items-center justify-center z-40 pointer-events-none"
             >
-              <div className="text-center">
-                <span className="font-[family-name:var(--font-accent)] text-4xl font-black bg-gradient-to-r from-accent-cyan to-accent-purple bg-clip-text text-transparent">
-                  LEVEL {levelUpFlash}
-                </span>
-              </div>
+              <span className="font-[family-name:var(--font-accent)] text-4xl font-black bg-gradient-to-r from-accent-cyan to-accent-purple bg-clip-text text-transparent">
+                LEVEL {levelUpFlash}
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -330,13 +316,23 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
                 initial={{ scale: 0.3, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 2, opacity: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.35 }}
                 className="font-[family-name:var(--font-accent)] text-8xl font-black text-accent-cyan"
                 style={{ textShadow: "0 0 40px rgba(34, 211, 238, 0.5)" }}
               >
-                {countdown === 0 ? "GO" : countdown}
+                {countdown <= 0 ? "GO!" : countdown}
               </motion.span>
             </AnimatePresence>
+          </div>
+        )}
+
+        {/* Focus prompt */}
+        {phase === "playing" && !isFocused && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 bg-bg-primary/60 backdrop-blur-sm">
+            <div className="text-center">
+              <p className="text-text-secondary text-lg font-medium animate-pulse">Click here to play</p>
+              <p className="text-text-ghost text-sm mt-1">Type the words as they hit the line</p>
+            </div>
           </div>
         )}
 
@@ -348,19 +344,19 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
             </span>
           </div>
         )}
-      </GlassPanel>
+      </div>
 
       {/* Stats bar */}
       <div className="flex items-center justify-center gap-6 mt-3 text-xs text-text-ghost">
         <span><span className="text-success">{gameState.hits}</span> hits</span>
         <span><span className="text-error">{gameState.misses}</span> misses</span>
-        <span>best combo <span className="text-accent-purple">{gameState.maxCombo}x</span></span>
+        <span>best <span className="text-accent-purple">{gameState.maxCombo}x</span></span>
       </div>
     </div>
   );
 }
 
-function FallingWordComponent({
+function FallingWordEl({
   word,
   currentInput,
   isActive,
@@ -369,7 +365,7 @@ function FallingWordComponent({
   currentInput: string;
   isActive: boolean;
 }) {
-  const laneWidth = 25; // percentage
+  const laneWidth = 25;
   const left = word.lane * laneWidth + laneWidth / 2;
   const top = word.y * 100;
 
@@ -379,7 +375,7 @@ function FallingWordComponent({
         initial={{ scale: 1, opacity: 1 }}
         animate={{ scale: 1.5, opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="absolute -translate-x-1/2 -translate-y-1/2 z-20"
+        className="absolute -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"
         style={{ left: `${left}%`, top: `${top}%` }}
       >
         <span className="font-[family-name:var(--font-mono)] text-base font-bold text-accent-cyan">
@@ -394,51 +390,39 @@ function FallingWordComponent({
       <motion.div
         animate={{ opacity: 0 }}
         transition={{ duration: 0.5 }}
-        className="absolute -translate-x-1/2 -translate-y-1/2"
+        className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none"
         style={{ left: `${left}%`, top: `${top}%` }}
       >
-        <span className="font-[family-name:var(--font-mono)] text-base text-error/50 line-through">
+        <span className="font-[family-name:var(--font-mono)] text-base text-error/40 line-through">
           {word.text}
         </span>
       </motion.div>
     );
   }
 
-  // Check if in strike zone
   const inStrikeZone = word.y >= 0.73 && word.y <= 0.97;
 
   return (
     <div
       className={cn(
-        "absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-75",
+        "absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none",
         inStrikeZone && "scale-110"
       )}
       style={{ left: `${left}%`, top: `${top}%` }}
     >
       <span
         className={cn(
-          "font-[family-name:var(--font-mono)] text-base font-semibold px-2 py-0.5 rounded-md inline-block",
+          "font-[family-name:var(--font-mono)] text-base font-semibold px-2 py-0.5 rounded-md inline-block whitespace-nowrap",
           isActive
             ? "bg-accent-cyan/20 border border-accent-cyan/40 text-white"
             : inStrikeZone
               ? "bg-white/10 text-text-primary"
               : "text-text-secondary"
         )}
-        style={
-          isActive
-            ? { boxShadow: `0 0 12px ${LANE_GLOW_COLORS[word.lane]}` }
-            : undefined
-        }
+        style={isActive ? { boxShadow: `0 0 12px ${LANE_GLOW_COLORS[word.lane]}` } : undefined}
       >
         {word.text.split("").map((char, i) => (
-          <span
-            key={i}
-            className={
-              isActive && i < currentInput.length
-                ? "text-accent-cyan"
-                : ""
-            }
-          >
+          <span key={i} className={isActive && i < currentInput.length ? "text-accent-cyan" : ""}>
             {char}
           </span>
         ))}

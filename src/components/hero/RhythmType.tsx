@@ -16,35 +16,14 @@ import {
   getRatingColor,
 } from "@/core/rhythm-engine";
 import { useAudio } from "@/hooks/use-audio";
-import { useParticles } from "@/hooks/use-particles";
-import { GlassPanel } from "@/components/ui/GlassPanel";
 
 interface RhythmTypeProps {
   onComplete: (results: ReturnType<typeof getRhythmResults>) => void;
   bpm?: number;
 }
 
-const VISIBLE_CHARS = 40; // how many characters are visible at once
-const CURSOR_OFFSET = 10; // cursor position from left edge (in char units)
-
-function RatingPopup({ rating, x }: { rating: TimingRating; x: number }) {
-  return (
-    <motion.div
-      initial={{ opacity: 1, y: 0 }}
-      animate={{ opacity: 0, y: -30 }}
-      transition={{ duration: 0.5 }}
-      className="absolute pointer-events-none z-30"
-      style={{ left: `${x}%`, top: "-30px" }}
-    >
-      <span className={cn(
-        "font-[family-name:var(--font-accent)] text-xs font-bold uppercase tracking-wider",
-        getRatingColor(rating)
-      )}>
-        {rating}
-      </span>
-    </motion.div>
-  );
-}
+const VISIBLE_CHARS = 35;
+const CURSOR_OFFSET = 8;
 
 export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
   const [gameState, setGameState] = useState<RhythmState>(() =>
@@ -53,6 +32,7 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
   const [phase, setPhase] = useState<"countdown" | "playing" | "ended">("countdown");
   const [countdown, setCountdown] = useState(3);
   const [ratingPopups, setRatingPopups] = useState<Array<{ id: number; rating: TimingRating; x: number }>>([]);
+  const [isFocused, setIsFocused] = useState(false);
 
   const stateRef = useRef(gameState);
   stateRef.current = gameState;
@@ -60,49 +40,53 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
   const animFrameRef = useRef<number | null>(null);
   const lastTimeRef = useRef(0);
   const popupIdRef = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const { playSound, initAudio } = useAudio();
-  const { spawn } = useParticles();
+
+  const focusInput = useCallback(() => {
+    inputRef.current?.focus();
+  }, []);
 
   // Countdown
   useEffect(() => {
     if (phase !== "countdown") return;
-    if (countdown <= 0) {
+    if (countdown < 0) {
       setPhase("playing");
       const now = Date.now();
       setGameState((s) => startRhythm(s, now));
-      lastTimeRef.current = performance.now();
+      lastTimeRef.current = 0;
+      focusInput();
       return;
     }
-    const t = setTimeout(() => setCountdown((c) => c - 1), 700);
+    const t = setTimeout(() => setCountdown((c) => c - 1), 800);
     return () => clearTimeout(t);
-  }, [phase, countdown]);
+  }, [phase, countdown, focusInput]);
+
+  // Keep focused
+  useEffect(() => {
+    if (phase !== "playing") return;
+    focusInput();
+    const interval = setInterval(focusInput, 1000);
+    return () => clearInterval(interval);
+  }, [phase, focusInput]);
 
   // Process effects
   const processEffects = useCallback(
     (effects: RhythmEffect[]) => {
       for (const effect of effects) {
         switch (effect.type) {
-          case "hit": {
+          case "hit":
             playSound("keystroke");
             if (effect.rating === "perfect") {
-              playSound("combo-milestone", { pitch: 2, volume: 0.4 });
+              playSound("word-complete");
             }
-            // Particle burst at the cursor position
-            if (containerRef.current) {
-              const rect = containerRef.current.getBoundingClientRect();
-              const cursorX = rect.left + (CURSOR_OFFSET / VISIBLE_CHARS) * rect.width;
-              const cursorY = rect.top + rect.height / 2;
-              spawn("keystroke", cursorX, cursorY, effect.rating === "perfect" ? 3 : 1);
+            {
+              const popX = (CURSOR_OFFSET / VISIBLE_CHARS) * 100;
+              const id = popupIdRef.current++;
+              setRatingPopups((p) => [...p.slice(-4), { id, rating: effect.rating!, x: popX }]);
+              setTimeout(() => setRatingPopups((p) => p.filter((pp) => pp.id !== id)), 600);
             }
-            // Rating popup
-            const popX = (CURSOR_OFFSET / VISIBLE_CHARS) * 100;
-            const id = popupIdRef.current++;
-            setRatingPopups((p) => [...p, { id, rating: effect.rating!, x: popX }]);
-            setTimeout(() => setRatingPopups((p) => p.filter((pp) => pp.id !== id)), 500);
             break;
-          }
           case "miss":
             playSound("error");
             break;
@@ -112,7 +96,7 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
         }
       }
     },
-    [playSound, spawn]
+    [playSound]
   );
 
   // Game loop
@@ -120,7 +104,8 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
     if (phase !== "playing") return;
 
     const loop = (time: number) => {
-      const delta = time - lastTimeRef.current;
+      if (lastTimeRef.current === 0) lastTimeRef.current = time;
+      const delta = Math.min(time - lastTimeRef.current, 50);
       lastTimeRef.current = time;
 
       const { state: newState, effects } = updateRhythm(stateRef.current, delta);
@@ -142,7 +127,7 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
     };
   }, [phase, processEffects, onComplete]);
 
-  // Input handling
+  // Input
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (phase !== "playing") return;
@@ -158,25 +143,24 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
     [phase, initAudio, processEffects]
   );
 
-  useEffect(() => {
-    if (phase === "playing") inputRef.current?.focus();
-  }, [phase]);
-
-  // Calculate visible window
+  // Visible window calculation
   const scrollOffset = gameState.cursorPosition - CURSOR_OFFSET;
   const startIdx = Math.max(0, Math.floor(scrollOffset));
   const endIdx = Math.min(gameState.text.length, startIdx + VISIBLE_CHARS + 2);
 
   return (
     <div
-      className="relative w-full max-w-3xl mx-auto select-none"
-      onClick={() => inputRef.current?.focus()}
+      className="relative w-full max-w-3xl mx-auto select-none cursor-pointer"
+      onClick={() => { initAudio(); focusInput(); }}
     >
       <input
         ref={inputRef}
         type="text"
-        className="absolute opacity-0 w-0 h-0 pointer-events-none"
+        className="fixed top-0 left-0 opacity-0 pointer-events-none"
+        style={{ width: 1, height: 1 }}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
@@ -202,42 +186,34 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
             </motion.div>
           )}
         </div>
-        <div className="flex items-center gap-3 text-xs text-text-ghost tabular-nums">
-          <span className="text-accent-cyan">{gameState.perfects}P</span>
-          <span className="text-accent-blue">{gameState.greats}Gr</span>
-          <span className="text-accent-purple">{gameState.goods}Go</span>
-          <span className="text-error">{gameState.misses}M</span>
+        <div className="flex items-center gap-3 text-xs tabular-nums">
+          <span className="text-accent-cyan font-bold">{gameState.perfects}</span>
+          <span className="text-accent-blue font-bold">{gameState.greats}</span>
+          <span className="text-accent-purple font-bold">{gameState.goods}</span>
+          <span className="text-error font-bold">{gameState.misses}</span>
         </div>
       </div>
 
       {/* Rhythm track */}
-      <div ref={containerRef}>
-      <GlassPanel intense className="relative overflow-hidden" style={{ height: "140px" }}>
-        {/* Beat markers — subtle vertical lines */}
-        <div className="absolute inset-0 flex items-center">
-          {Array.from({ length: 20 }).map((_, i) => {
-            const charPos = Math.floor(scrollOffset) + i;
-            if (charPos < 0 || charPos % 4 !== 0) return null;
-            const xPct = ((i - (scrollOffset % 1)) / VISIBLE_CHARS) * 100;
-            return (
-              <div
-                key={i}
-                className="absolute top-0 bottom-0 w-[1px] bg-white/[0.04]"
-                style={{ left: `${xPct}%` }}
-              />
-            );
-          })}
-        </div>
+      <div className="glass-intense rounded-2xl relative overflow-hidden" style={{ height: "160px" }}>
+        {/* Beat markers */}
+        {Array.from({ length: VISIBLE_CHARS }).map((_, i) => {
+          const charPos = Math.floor(scrollOffset) + i;
+          if (charPos < 0 || charPos % 4 !== 0) return null;
+          const xPct = ((i - (scrollOffset % 1)) / VISIBLE_CHARS) * 100;
+          return (
+            <div key={i} className="absolute top-0 bottom-0 w-[1px] bg-white/[0.03]" style={{ left: `${xPct}%` }} />
+          );
+        })}
 
-        {/* Cursor line — the "hit" marker */}
+        {/* Cursor line */}
         <div
-          className="absolute top-0 bottom-0 w-[2px] z-20"
+          className="absolute top-0 bottom-0 w-[3px] z-20"
           style={{ left: `${(CURSOR_OFFSET / VISIBLE_CHARS) * 100}%` }}
         >
           <div className="w-full h-full bg-accent-pink" />
-          <div className="absolute inset-0 bg-accent-pink/30 blur-md" />
-          {/* Cursor glow circle */}
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-accent-pink/10 border border-accent-pink/30" />
+          <div className="absolute inset-0 bg-accent-pink/30 blur-lg" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-accent-pink/10 border border-accent-pink/30" />
         </div>
 
         {/* Characters */}
@@ -245,28 +221,23 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
           {gameState.notes.slice(startIdx, endIdx).map((note) => {
             const charOffset = note.index - scrollOffset;
             const xPct = (charOffset / VISIBLE_CHARS) * 100;
-            const distanceFromCursor = Math.abs(charOffset - CURSOR_OFFSET);
-            const isNearCursor = distanceFromCursor < 2;
+            const distFromCursor = Math.abs(charOffset - CURSOR_OFFSET);
+            const isNear = distFromCursor < 2;
 
             return (
               <div
                 key={note.index}
                 className="absolute flex items-center justify-center"
-                style={{
-                  left: `${xPct}%`,
-                  width: `${100 / VISIBLE_CHARS}%`,
-                  transition: "opacity 50ms",
-                }}
+                style={{ left: `${xPct}%`, width: `${100 / VISIBLE_CHARS}%` }}
               >
                 <span
                   className={cn(
                     "font-[family-name:var(--font-mono)] text-2xl font-semibold transition-all duration-75",
-                    note.state === "upcoming" && (isNearCursor ? "text-text-primary scale-110" : "text-text-ghost"),
-                    note.state === "perfect" && "text-accent-cyan scale-125",
+                    note.state === "upcoming" && (isNear ? "text-text-primary scale-110" : "text-text-ghost"),
+                    note.state === "perfect" && "text-accent-cyan",
                     note.state === "great" && "text-accent-blue",
-                    note.state === "good" && "text-accent-purple opacity-70",
-                    note.state === "miss" && "text-error/40 line-through",
-                    note.state === "active" && "text-white",
+                    note.state === "good" && "text-accent-purple/70",
+                    note.state === "miss" && "text-error/30 line-through",
                   )}
                 >
                   {note.char === " " ? "\u00B7" : note.char}
@@ -279,7 +250,21 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
         {/* Rating popups */}
         <AnimatePresence>
           {ratingPopups.map((p) => (
-            <RatingPopup key={p.id} rating={p.rating} x={p.x} />
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 1, y: 0 }}
+              animate={{ opacity: 0, y: -30 }}
+              transition={{ duration: 0.5 }}
+              className="absolute pointer-events-none z-30"
+              style={{ left: `${p.x}%`, top: "15px" }}
+            >
+              <span className={cn(
+                "font-[family-name:var(--font-accent)] text-sm font-bold uppercase",
+                getRatingColor(p.rating)
+              )}>
+                {p.rating}
+              </span>
+            </motion.div>
           ))}
         </AnimatePresence>
 
@@ -296,21 +281,27 @@ export function RhythmType({ onComplete, bpm = 180 }: RhythmTypeProps) {
                 className="font-[family-name:var(--font-accent)] text-7xl font-black text-accent-pink"
                 style={{ textShadow: "0 0 40px rgba(236, 72, 153, 0.5)" }}
               >
-                {countdown === 0 ? "GO" : countdown}
+                {countdown <= 0 ? "GO!" : countdown}
               </motion.span>
             </AnimatePresence>
           </div>
         )}
-      </GlassPanel>
+
+        {/* Focus prompt */}
+        {phase === "playing" && !isFocused && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 bg-bg-primary/60 backdrop-blur-sm">
+            <p className="text-text-secondary text-lg font-medium animate-pulse">Click here to play</p>
+          </div>
+        )}
       </div>
 
-      {/* BPM indicator */}
+      {/* Info bar */}
       <div className="flex items-center justify-center gap-4 mt-3 text-xs text-text-ghost">
         <span>{bpm} BPM</span>
         <span className="text-text-ghost/30">|</span>
         <span>{gameState.text.length} notes</span>
         <span className="text-text-ghost/30">|</span>
-        <span>best combo <span className="text-accent-pink">{gameState.maxCombo}x</span></span>
+        <span>best <span className="text-accent-pink">{gameState.maxCombo}x</span></span>
       </div>
     </div>
   );
