@@ -202,7 +202,7 @@ function PracticeContent() {
   }, [phase, handleRestart, handleNewPassage, resetStore]);
 
   return (
-    <main className="h-screen flex flex-col overflow-hidden">
+    <main className="min-h-[calc(100vh-3.5rem)] flex flex-col">
       {/* Background */}
       <div className="fixed inset-0 bg-gradient-to-b from-bg-primary via-bg-primary to-bg-secondary -z-10" />
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(34,211,238,0.04)_0%,_transparent_50%)] -z-10" />
