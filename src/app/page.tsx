@@ -304,15 +304,15 @@ const modes = [
     ),
   },
   {
-    name: "Daily Challenge",
-    description: "One passage. One chance. Global leaderboard.",
-    href: "/daily",
-    available: false,
-    accent: "from-accent-blue to-accent-purple",
-    glowColor: "rgba(59, 130, 246, 0.2)",
+    name: "Hero Mode",
+    description: "Guitar Hero meets typing. Catch falling words.",
+    href: "/hero",
+    available: true,
+    accent: "from-accent-purple to-accent-pink",
+    glowColor: "rgba(168, 85, 247, 0.25)",
     icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
       </svg>
     ),
   },
@@ -321,8 +321,8 @@ const modes = [
     description: "Real-time typing races against others",
     href: "/race",
     available: false,
-    accent: "from-accent-pink to-accent-cyan",
-    glowColor: "rgba(236, 72, 153, 0.2)",
+    accent: "from-accent-blue to-accent-cyan",
+    glowColor: "rgba(59, 130, 246, 0.2)",
     icon: (
       <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
@@ -385,9 +385,9 @@ export default function HomePage() {
               Start Typing
             </button>
           </Link>
-          <Link href="/practice?mode=ai">
-            <button className="px-8 py-3 rounded-xl bg-white/5 border border-white/10 text-text-primary font-semibold text-sm tracking-wide hover:bg-white/10 hover:border-white/20 hover:scale-[1.03] active:scale-[0.98] transition-all duration-200 cursor-pointer">
-              Try AI Mode
+          <Link href="/hero">
+            <button className="px-8 py-3 rounded-xl bg-gradient-to-r from-accent-purple/20 to-accent-pink/20 border border-accent-purple/20 text-text-primary font-semibold text-sm tracking-wide hover:from-accent-purple/30 hover:to-accent-pink/30 hover:border-accent-purple/40 hover:scale-[1.03] hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] active:scale-[0.98] transition-all duration-200 cursor-pointer">
+              Hero Mode
             </button>
           </Link>
         </motion.div>
