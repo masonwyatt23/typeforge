@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+/* ============================================
+   DESIGN SYSTEM — Sleek Futuristic Minimal
+   ============================================ */
+
+@theme {
+  --color-bg-primary: hsl(225, 25%, 6%);
+  --color-bg-secondary: hsl(225, 20%, 10%);
+  --color-bg-elevated: hsl(225, 18%, 14%);
+
+  --color-accent-cyan: hsl(190, 95%, 55%);
+  --color-accent-blue: hsl(220, 95%, 60%);
+  --color-accent-purple: hsl(270, 85%, 65%);
+  --color-accent-pink: hsl(330, 85%, 60%);
+
+  --color-text-primary: hsl(210, 15%, 92%);
+  --color-text-secondary: hsl(210, 10%, 55%);
+  --color-text-ghost: hsl(210, 8%, 25%);
+
+  --color-success: hsl(155, 75%, 50%);
+  --color-error: hsl(0, 80%, 55%);
+  --color-warning: hsl(40, 90%, 55%);
+
+  --font-mono: "JetBrains Mono", "Fira Code", "SF Mono", ui-monospace, monospace;
+  --font-display: "Inter", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  --font-accent: "Orbitron", "Rajdhani", ui-sans-serif, sans-serif;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  font-family: var(--font-display);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+}
+
+/* ============================================
+   DYNAMIC COMBO VARIABLES (set via JS)
+   ============================================ */
+
+:root {
+  --combo-hue-start: 190;
+  --combo-hue-end: 220;
+  --combo-intensity: 0;
+  --combo-particle-rate: 1;
+  --shake-x: 0px;
+  --shake-y: 0px;
+}
+
+/* ============================================
+   GLASSMORPHISM UTILITIES
+   ============================================ */
+
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset,
+    0 4px 24px rgba(0, 0, 0, 0.3);
+}
+
+.glass-intense {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+    0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.neon-glow-cyan {
+  box-shadow:
+    0 0 8px var(--color-accent-cyan),
+    0 0 24px color-mix(in srgb, var(--color-accent-cyan) 15%, transparent);
+}
+
+.neon-glow-purple {
+  box-shadow:
+    0 0 8px var(--color-accent-purple),
+    0 0 24px color-mix(in srgb, var(--color-accent-purple) 15%, transparent);
+}
+
+.neon-glow-pink {
+  box-shadow:
+    0 0 8px var(--color-accent-pink),
+    0 0 24px color-mix(in srgb, var(--color-accent-pink) 15%, transparent);
+}
+
+.neon-text {
+  text-shadow:
+    0 0 8px currentColor,
+    0 0 24px currentColor;
+}
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+
+@keyframes keystroke-pulse {
+  0%   { transform: scale(1); opacity: 0.8; }
+  40%  { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes error-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  40%      { transform: translateX(3px); }
+  60%      { transform: translateX(-2px); }
+  80%      { transform: translateX(1px); }
+}
+
+@keyframes trailing-glow {
+  0%   { text-shadow: 0 0 12px var(--color-accent-cyan), 0 0 24px var(--color-accent-cyan); }
+  100% { text-shadow: 0 0 0px transparent; }
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0; }
+}
+
+@keyframes pulse-bg {
+  0%, 100% { opacity: 0; }
+  50%      { opacity: var(--combo-intensity); }
+}
+
+@keyframes aurora {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes hue-rotate {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%      { transform: translateY(-8px); }
+}
+
+@keyframes fade-in-up {
+  0%   { opacity: 0; transform: translateY(12px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes count-up {
+  0%   { opacity: 0; transform: scale(0.8); }
+  60%  { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* ============================================
+   TYPING CHARACTER STATES
+   ============================================ */
+
+.char-pending {
+  color: var(--color-text-ghost);
+}
+
+.char-correct {
+  color: var(--color-accent-cyan);
+  transition: color 80ms ease-out;
+}
+
+.char-incorrect {
+  color: var(--color-error);
+  background: rgba(239, 68, 68, 0.15);
+  border-radius: 2px;
+}
+
+.char-corrected {
+  color: color-mix(in srgb, var(--color-accent-cyan) 60%, var(--color-text-secondary));
+  transition: color 80ms ease-out;
+}
+
+.char-current {
+  border-left: 2px solid var(--color-accent-cyan);
+  margin-left: -1px;
+  animation: cursor-blink 1s ease-in-out infinite;
+}
+
+/* Stop blinking when actively typing */
+.typing-active .char-current {
+  animation: none;
+  opacity: 1;
+}
+
+/* ============================================
+   COMBO TIER BACKGROUNDS
+   ============================================ */
+
+.combo-bg-building {
+  background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.03) 0%, transparent 70%);
+  animation: pulse-bg 2s ease-in-out infinite;
+}
+
+.combo-bg-hot {
+  background: radial-gradient(ellipse at center, rgba(168, 85, 247, 0.05) 0%, transparent 70%);
+  animation: pulse-bg 1.5s ease-in-out infinite;
+}
+
+.combo-bg-flow {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.04), rgba(236, 72, 153, 0.04), rgba(168, 85, 247, 0.04));
+  background-size: 200% 200%;
+  animation: aurora 4s ease-in-out infinite;
+}
+
+.combo-bg-unstoppable {
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.06), rgba(34, 211, 238, 0.06), rgba(168, 85, 247, 0.06), rgba(236, 72, 153, 0.06));
+  background-size: 300% 300%;
+  animation: aurora 3s ease-in-out infinite, hue-rotate 8s linear infinite;
+}
+
+/* ============================================
+   SCREEN GLOW OVERLAY (for high combos)
+   ============================================ */
+
+.screen-glow {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0;
+  transition: opacity 300ms ease-out;
+}
+
+.screen-glow-active {
+  opacity: 1;
+  box-shadow: inset 0 0 120px rgba(168, 85, 247, 0.08);
+}
+
+.screen-glow-max {
+  opacity: 1;
+  box-shadow: inset 0 0 120px rgba(236, 72, 153, 0.12);
+}
+
+/* ============================================
+   SCROLLBAR STYLING
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

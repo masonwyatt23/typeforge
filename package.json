@@ -1,0 +1,35 @@
+{
+  "name": "typing-game",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+    "dependencies": {
+    "clsx": "^2.1.1",
+    "framer-motion": "^12.38.0",
+    "next": "^16.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@vitejs/plugin-react": "^6.0.1",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}
