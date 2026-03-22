@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WordDrop } from "@/components/hero/WordDrop";
+import { RhythmType } from "@/components/hero/RhythmType";
 import { ParticleCanvas } from "@/components/effects/ParticleCanvas";
 import { ScreenShake } from "@/components/effects/ScreenShake";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -17,12 +18,16 @@ type Phase = "select" | "playing" | "results";
 
 interface GameResults {
   score: number;
-  hits: number;
-  misses: number;
+  hits?: number;
+  misses?: number;
   accuracy: number;
   maxCombo: number;
-  level: number;
-  duration: number;
+  level?: number;
+  duration?: number;
+  perfects?: number;
+  greats?: number;
+  goods?: number;
+  totalNotes?: number;
 }
 
 function getGrade(accuracy: number, score: number): { grade: string; color: string } {
@@ -149,8 +154,8 @@ export default function HeroPage() {
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-text-primary font-medium mb-1">Coming Soon</p>
-                      <p className="text-xs text-text-secondary">Characters scroll in rhythm. Type each one in time with the beat for PERFECT, GREAT, or GOOD ratings.</p>
+                      <p className="text-sm text-text-primary font-medium mb-1">Type to the beat</p>
+                      <p className="text-xs text-text-secondary">Characters scroll in rhythm. Hit each one as the cursor passes for PERFECT, GREAT, or GOOD ratings.</p>
                     </>
                   )}
                 </GlassPanel>
@@ -177,10 +182,9 @@ export default function HeroPage() {
                   variant="primary"
                   size="lg"
                   onClick={() => setPhase("playing")}
-                  disabled={mode === "rhythm-type"}
                   className="min-w-[160px] bg-gradient-to-r from-accent-purple to-accent-pink border-accent-purple/20 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)]"
                 >
-                  {mode === "rhythm-type" ? "Coming Soon" : "Start Game"}
+                  Start Game
                 </Button>
               </motion.div>
             )}
@@ -194,7 +198,11 @@ export default function HeroPage() {
                 exit={{ opacity: 0 }}
                 className="w-full"
               >
-                <WordDrop onComplete={handleComplete} duration={duration} />
+                {mode === "word-drop" ? (
+                  <WordDrop onComplete={handleComplete} duration={duration} />
+                ) : (
+                  <RhythmType onComplete={handleComplete} bpm={180} />
+                )}
               </motion.div>
             )}
 
@@ -242,12 +250,20 @@ export default function HeroPage() {
                   transition={{ delay: 0.4 }}
                   className="flex flex-wrap justify-center gap-3"
                 >
-                  {[
-                    { label: "Accuracy", value: `${Math.round(results.accuracy * 100)}%`, color: results.accuracy >= 0.9 ? "text-success" : "text-warning" },
-                    { label: "Max Combo", value: `${results.maxCombo}x`, color: "text-accent-purple" },
-                    { label: "Level", value: `${results.level}`, color: "text-accent-cyan" },
-                    { label: "Hits", value: `${results.hits}`, color: "text-accent-blue" },
-                  ].map((stat) => (
+                  {(mode === "word-drop"
+                    ? [
+                        { label: "Accuracy", value: `${Math.round(results.accuracy * 100)}%`, color: results.accuracy >= 0.9 ? "text-success" : "text-warning" },
+                        { label: "Max Combo", value: `${results.maxCombo}x`, color: "text-accent-purple" },
+                        { label: "Level", value: `${results.level ?? 1}`, color: "text-accent-cyan" },
+                        { label: "Hits", value: `${results.hits ?? 0}`, color: "text-accent-blue" },
+                      ]
+                    : [
+                        { label: "Accuracy", value: `${Math.round(results.accuracy * 100)}%`, color: results.accuracy >= 0.9 ? "text-success" : "text-warning" },
+                        { label: "Perfect", value: `${results.perfects ?? 0}`, color: "text-accent-cyan" },
+                        { label: "Great", value: `${results.greats ?? 0}`, color: "text-accent-blue" },
+                        { label: "Combo", value: `${results.maxCombo}x`, color: "text-accent-pink" },
+                      ]
+                  ).map((stat) => (
                     <GlassPanel key={stat.label} className="px-5 py-3 text-center min-w-[100px]">
                       <span className={cn("font-[family-name:var(--font-accent)] text-xl font-bold", stat.color)}>
                         {stat.value}
