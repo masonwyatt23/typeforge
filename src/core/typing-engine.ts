@@ -3,6 +3,7 @@ import {
   type TypingAction,
   type TypingEffect,
   type CharState,
+  type ComboTier,
   type TypingResult,
 } from "@/types/typing";
 import { MAX_UNCORRECTED_ERRORS, CHARS_PER_WORD, COMBO_TIERS } from "@/lib/utils/constants";
@@ -221,12 +222,12 @@ export function getCurrentWpm(state: TypingEngineState, now: number): number {
 }
 
 // Get combo tier from count
-export function getComboTier(combo: number) {
-  if (combo >= COMBO_TIERS.UNSTOPPABLE) return "unstoppable" as const;
-  if (combo >= COMBO_TIERS.FLOW) return "flow" as const;
-  if (combo >= COMBO_TIERS.HOT) return "hot" as const;
-  if (combo >= COMBO_TIERS.BUILDING) return "building" as const;
-  return "none" as const;
+export function getComboTier(combo: number): ComboTier {
+  if (combo >= COMBO_TIERS.UNSTOPPABLE) return "unstoppable";
+  if (combo >= COMBO_TIERS.FLOW) return "flow";
+  if (combo >= COMBO_TIERS.HOT) return "hot";
+  if (combo >= COMBO_TIERS.BUILDING) return "building";
+  return "none";
 }
 
 // Get progress as 0-1

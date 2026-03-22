@@ -214,11 +214,11 @@ function PracticeContent() {
 
       {/* Screen glow */}
       <div
-        className={`screen-glow transition-opacity duration-500 ${
-          phase === "playing" && (comboTier === "unstoppable" || comboTier === "flow")
-            ? comboTier === "unstoppable" ? "screen-glow-max" : "screen-glow-active"
-            : comboTier === "hot" ? "screen-glow-active" : ""
-        }`}
+        className={cn(
+          "screen-glow transition-opacity duration-500",
+          phase === "playing" && comboTier === "unstoppable" && "screen-glow-max",
+          phase === "playing" && (comboTier === "flow" || comboTier === "hot") && "screen-glow-active",
+        )}
       />
 
       {phase === "playing" && <FlowStateOverlay tier={comboTier} combo={combo} />}

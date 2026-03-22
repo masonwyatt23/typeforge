@@ -82,22 +82,27 @@ function StatCard({
   );
 }
 
+function getWpmColor(wpm: number): string {
+  if (wpm >= 120) return "text-accent-purple";
+  if (wpm >= 80) return "text-accent-blue";
+  if (wpm >= 40) return "text-accent-cyan";
+  return "text-text-secondary";
+}
+
+function getAccuracyColor(accuracyPct: number): string {
+  if (accuracyPct >= 98) return "text-success";
+  if (accuracyPct >= 95) return "text-accent-cyan";
+  if (accuracyPct >= 90) return "text-warning";
+  return "text-error";
+}
+
 export function ResultsScreen({ result, onRestart, onNewPassage, personalBests }: ResultsScreenProps) {
   const [copied, setCopied] = useState(false);
   const accuracyPct = Math.round(result.accuracy * 100);
   const { grade, color: gradeColor, message } = getGrade(result.wpm, result.accuracy);
 
-  const wpmColor =
-    result.wpm >= 120 ? "text-accent-purple"
-      : result.wpm >= 80 ? "text-accent-blue"
-        : result.wpm >= 40 ? "text-accent-cyan"
-          : "text-text-secondary";
-
-  const accuracyColor =
-    accuracyPct >= 98 ? "text-success"
-      : accuracyPct >= 95 ? "text-accent-cyan"
-        : accuracyPct >= 90 ? "text-warning"
-          : "text-error";
+  const wpmColor = getWpmColor(result.wpm);
+  const accuracyColor = getAccuracyColor(accuracyPct);
 
   const minutes = Math.floor(result.durationMs / 60000);
   const seconds = Math.round((result.durationMs % 60000) / 1000);

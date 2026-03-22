@@ -131,16 +131,6 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
         if (effects.length > 0) {
           processEffects(effects, state.currentCombo);
           pendingEffectsRef.current = [];
-
-          // Check for completion
-          if (effects.some((e) => e.type === "COMPLETE")) {
-            // Compute results from the latest state
-            // We need a small delay to let the reducer complete
-            setTimeout(() => {
-              // Re-read from the actual reducer state via a ref-based approach
-              // For now, we trigger onComplete in the component via isComplete check
-            }, 0);
-          }
         }
       });
     },

@@ -180,114 +180,54 @@ class AudioEngine {
     osc.stop(now + 0.25);
   }
 
-  private playWordComplete(volume: number): void {
+  /** Plays a sequence of notes as an arpeggio with configurable timing and tone. */
+  private playArpeggio(
+    notes: number[],
+    options: { waveform?: OscillatorType; interval: number; gainLevel: number; decay: number; volume: number }
+  ): void {
     const ctx = this.context!;
     const now = ctx.currentTime;
+    const waveform = options.waveform ?? "sine";
 
-    // Two-tone arpeggio C6 → E6
-    const notes = [1047, 1319]; // C6, E6
-    notes.forEach((freq, i) => {
+    for (let i = 0; i < notes.length; i++) {
       const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = freq;
+      osc.type = waveform;
+      osc.frequency.value = notes[i];
 
       const gain = ctx.createGain();
-      const start = now + i * 0.04;
-      gain.gain.setValueAtTime(0.04 * volume, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.08);
+      const start = now + i * options.interval;
+      gain.gain.setValueAtTime(options.gainLevel * options.volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + options.decay);
 
       osc.connect(gain);
       gain.connect(this.sfxGain!);
 
       osc.start(start);
-      osc.stop(start + 0.1);
-    });
+      osc.stop(start + options.decay + 0.02);
+    }
+  }
+
+  private playWordComplete(volume: number): void {
+    // Two-tone arpeggio C6 -> E6
+    this.playArpeggio([1047, 1319], { interval: 0.04, gainLevel: 0.04, decay: 0.08, volume });
   }
 
   private playCountdownTick(volume: number): void {
-    const ctx = this.context!;
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 440;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.1 * volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain!);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
+    this.playArpeggio([440], { interval: 0, gainLevel: 0.1, decay: 0.1, volume });
   }
 
   private playCountdownGo(volume: number): void {
-    const ctx = this.context!;
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = 880;
-
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.12 * volume, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-
-    osc.connect(gain);
-    gain.connect(this.sfxGain!);
-
-    osc.start(now);
-    osc.stop(now + 0.25);
+    this.playArpeggio([880], { interval: 0, gainLevel: 0.12, decay: 0.2, volume });
   }
 
   private playComplete(volume: number): void {
-    const ctx = this.context!;
-    const now = ctx.currentTime;
-
-    // Ascending major arpeggio: C5 → E5 → G5 → C6
-    const notes = [523, 659, 784, 1047];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = "sine";
-      osc.frequency.value = freq;
-
-      const gain = ctx.createGain();
-      const start = now + i * 0.08;
-      gain.gain.setValueAtTime(0.06 * volume, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-
-      osc.start(start);
-      osc.stop(start + 0.35);
-    });
+    // Ascending major arpeggio: C5 -> E5 -> G5 -> C6
+    this.playArpeggio([523, 659, 784, 1047], { interval: 0.08, gainLevel: 0.06, decay: 0.3, volume });
   }
 
   private playLevelUp(volume: number): void {
-    const ctx = this.context!;
-    const now = ctx.currentTime;
-
     // Triumphant arpeggio with richer harmonics
-    const notes = [523, 659, 784, 1047, 1319];
-    notes.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-
-      const gain = ctx.createGain();
-      const start = now + i * 0.06;
-      gain.gain.setValueAtTime(0.07 * volume, start);
-      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
-
-      osc.connect(gain);
-      gain.connect(this.sfxGain!);
-
-      osc.start(start);
-      osc.stop(start + 0.45);
-    });
+    this.playArpeggio([523, 659, 784, 1047, 1319], { waveform: "triangle", interval: 0.06, gainLevel: 0.07, decay: 0.4, volume });
   }
 
   get volume(): number {
