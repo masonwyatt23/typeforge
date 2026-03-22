@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/Button";
 import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/utils/cn";
 import Link from "next/link";
-import { useStatsStore } from "@/stores/stats-store";
 
 type HeroMode = "word-drop" | "rhythm-type";
 type Phase = "select" | "playing" | "results";

@@ -1,6 +1,9 @@
 // Rhythm Type Engine — type characters in sync with a moving cursor
 
-export type TimingRating = "perfect" | "great" | "good" | "miss";
+import { type TimingRating, isComboMilestone } from "@/core/hero-shared";
+
+export type { TimingRating } from "@/core/hero-shared";
+export { getRatingColor } from "@/core/hero-shared";
 
 export interface RhythmNote {
   char: string;
@@ -199,7 +202,7 @@ export function handleRhythmInput(
   updatedNotes[idx] = { ...note, state: rating, hitDelta: distance };
 
   effects.push({ type: "hit", rating, index: idx, combo });
-  if (combo === 10 || combo === 25 || combo === 50 || combo === 100) {
+  if (isComboMilestone(combo)) {
     effects.push({ type: "combo_milestone", combo });
   }
 
@@ -233,11 +236,3 @@ export function getRhythmResults(state: RhythmState) {
   };
 }
 
-export function getRatingColor(rating: TimingRating): string {
-  switch (rating) {
-    case "perfect": return "text-accent-cyan";
-    case "great": return "text-accent-blue";
-    case "good": return "text-accent-purple";
-    case "miss": return "text-error";
-  }
-}

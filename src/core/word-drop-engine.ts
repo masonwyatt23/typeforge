@@ -1,5 +1,10 @@
 // Word Drop Engine — Guitar Hero style falling word game
 
+import { type TimingRating, isComboMilestone } from "@/core/hero-shared";
+
+export type { TimingRating as HitRating } from "@/core/hero-shared";
+export { getRatingColor as getHitRatingColor } from "@/core/hero-shared";
+
 export interface FallingWord {
   id: number;
   text: string;
@@ -26,11 +31,9 @@ export interface WordDropState {
   lastSpawnTime: number;
 }
 
-export type HitRating = "perfect" | "great" | "good" | "miss";
-
 export interface WordDropEffect {
   type: "hit" | "miss" | "combo_milestone" | "level_up";
-  rating?: HitRating;
+  rating?: TimingRating;
   word?: FallingWord;
   combo?: number;
   level?: number;
@@ -248,7 +251,7 @@ export function handleWordDropInput(
   if (newInput === matchingWord.text) {
     // Calculate hit rating based on position
     const distance = Math.abs(matchingWord.y - STRIKE_ZONE_Y);
-    let rating: HitRating;
+    let rating: TimingRating;
     let scoreGain: number;
 
     if (distance <= PERFECT_TOLERANCE) {
@@ -268,7 +271,7 @@ export function handleWordDropInput(
 
     effects.push({ type: "hit", rating, word: matchingWord, combo });
 
-    if (combo === 10 || combo === 25 || combo === 50 || combo === 100) {
+    if (isComboMilestone(combo)) {
       effects.push({ type: "combo_milestone", combo });
     }
 
@@ -308,15 +311,6 @@ export function handleWordDropBackspace(
     },
     effects: [],
   };
-}
-
-export function getHitRatingColor(rating: HitRating): string {
-  switch (rating) {
-    case "perfect": return "text-accent-cyan";
-    case "great": return "text-accent-blue";
-    case "good": return "text-accent-purple";
-    case "miss": return "text-error";
-  }
 }
 
 export function getWordDropResults(state: WordDropState) {
