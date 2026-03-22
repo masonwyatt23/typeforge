@@ -38,6 +38,7 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
   const [phase, setPhase] = useState<"countdown" | "playing" | "ended">("countdown");
   const [countdown, setCountdown] = useState(3);
   const [isFocused, setIsFocused] = useState(false);
+  const [wrongFlash, setWrongFlash] = useState(false);
 
   const stateRef = useRef(gameState);
   stateRef.current = gameState;
@@ -166,11 +167,19 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
       if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
       e.preventDefault();
 
+      const prevInput = stateRef.current.currentInput;
       const { state: newState, effects } = handleWordDropInput(stateRef.current, e.key);
       setGameState(newState);
       if (effects.length > 0) processEffects(effects);
+
+      // Flash red if input was rejected (no match found)
+      if (newState.currentInput === "" && prevInput === "") {
+        setWrongFlash(true);
+        playSound("error");
+        setTimeout(() => setWrongFlash(false), 200);
+      }
     },
-    [phase, initAudio, processEffects]
+    [phase, initAudio, processEffects, playSound]
   );
 
   const handleContainerClick = useCallback(() => {
@@ -247,17 +256,56 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
           />
         ))}
 
-        {/* Strike zone */}
-        <div className="absolute left-0 right-0 z-10" style={{ top: "85%" }}>
-          <div className="w-full h-[2px] bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-60" />
-          <div className="absolute inset-x-0 -top-1 h-1 bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-15 blur-md" />
-        </div>
+        {/* Active lane highlight */}
+        {gameState.activeWordId !== null && (() => {
+          const activeWord = gameState.words.find(w => w.id === gameState.activeWordId);
+          if (!activeWord) return null;
+          return (
+            <div
+              className="absolute top-0 bottom-0 transition-all duration-150 pointer-events-none"
+              style={{
+                left: `${activeWord.lane * 25}%`,
+                width: "25%",
+                background: `linear-gradient(to bottom, transparent 60%, ${LANE_GLOW_COLORS[activeWord.lane]}, transparent)`,
+                opacity: 0.3,
+              }}
+            />
+          );
+        })()}
 
-        {/* Strike zone highlight area */}
+        {/* GOOD zone indicator (73-97%) */}
         <div
-          className="absolute left-0 right-0 opacity-30"
-          style={{ top: "73%", height: "24%", background: "linear-gradient(to bottom, transparent, rgba(255,255,255,0.02), transparent)" }}
+          className="absolute left-0 right-0 pointer-events-none border-t border-b border-white/[0.04]"
+          style={{ top: "73%", height: "24%" }}
         />
+
+        {/* GREAT zone (79-91%) - slightly brighter */}
+        <div
+          className="absolute left-0 right-0 pointer-events-none"
+          style={{
+            top: "79%", height: "12%",
+            background: "linear-gradient(to bottom, transparent, rgba(59,130,246,0.04), transparent)",
+          }}
+        />
+
+        {/* PERFECT zone (82-88%) - brightest, pulsing */}
+        <div
+          className="absolute left-0 right-0 pointer-events-none animate-pulse"
+          style={{
+            top: "82%", height: "6%",
+            background: "linear-gradient(to bottom, rgba(34,211,238,0.06), rgba(34,211,238,0.08), rgba(34,211,238,0.06))",
+            boxShadow: "inset 0 0 20px rgba(34,211,238,0.05)",
+          }}
+        />
+
+        {/* Strike zone line — the main target */}
+        <div className="absolute left-0 right-0 z-10" style={{ top: "85%" }}>
+          <div className="w-full h-[3px] bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink" style={{ opacity: 0.8 }} />
+          <div className="absolute inset-x-0 -top-2 h-4 bg-gradient-to-r from-accent-cyan via-accent-purple to-accent-pink opacity-15 blur-lg" />
+          {/* Zone labels */}
+          <div className="absolute -top-[32px] left-2 text-[8px] text-accent-cyan/40 font-[family-name:var(--font-accent)] tracking-widest">PERFECT</div>
+          <div className="absolute top-[8px] left-2 text-[8px] text-accent-purple/30 font-[family-name:var(--font-accent)] tracking-widest">GOOD</div>
+        </div>
 
         {/* Falling words */}
         {gameState.words.map((word) => (
@@ -337,10 +385,15 @@ export function WordDrop({ onComplete, duration = 60 }: WordDropProps) {
         )}
 
         {/* Current input display */}
-        {gameState.currentInput && phase === "playing" && (
+        {(gameState.currentInput || wrongFlash) && phase === "playing" && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
-            <span className="font-[family-name:var(--font-mono)] text-lg text-accent-cyan bg-bg-primary/80 px-3 py-1 rounded-lg border border-accent-cyan/20">
-              {gameState.currentInput}
+            <span className={cn(
+              "font-[family-name:var(--font-mono)] text-lg px-3 py-1 rounded-lg border transition-colors duration-100",
+              wrongFlash
+                ? "text-error bg-error/10 border-error/30 animate-[error-shake_200ms_ease-out]"
+                : "text-accent-cyan bg-bg-primary/80 border-accent-cyan/20"
+            )}>
+              {wrongFlash ? "?" : gameState.currentInput}
             </span>
           </div>
         )}
@@ -400,29 +453,55 @@ function FallingWordEl({
     );
   }
 
-  const inStrikeZone = word.y >= 0.73 && word.y <= 0.97;
+  // Color-coded proximity zones
+  const inPerfect = word.y >= 0.82 && word.y <= 0.88;
+  const inGreat = word.y >= 0.79 && word.y <= 0.91;
+  const inGood = word.y >= 0.73 && word.y <= 0.97;
+  const tooLate = word.y > 0.91;
+
+  // Determine visual style based on proximity
+  let wordStyle: string;
+  let scale = "";
+  let glow: React.CSSProperties | undefined;
+
+  if (isActive) {
+    wordStyle = "bg-accent-cyan/20 border border-accent-cyan/40 text-white";
+    scale = "scale-115";
+    glow = { boxShadow: `0 0 16px ${LANE_GLOW_COLORS[word.lane]}` };
+  } else if (inPerfect) {
+    wordStyle = "bg-accent-cyan/15 border border-accent-cyan/25 text-accent-cyan";
+    scale = "scale-115";
+    glow = { boxShadow: "0 0 12px rgba(34, 211, 238, 0.2)" };
+  } else if (tooLate && inGood) {
+    wordStyle = "bg-error/10 border border-error/20 text-error/80";
+    scale = "scale-105";
+  } else if (inGreat) {
+    wordStyle = "bg-accent-blue/10 border border-accent-blue/15 text-accent-blue";
+    scale = "scale-110";
+  } else if (inGood) {
+    wordStyle = "bg-white/5 border border-white/10 text-text-primary";
+    scale = "scale-105";
+  } else {
+    wordStyle = "text-text-secondary";
+  }
 
   return (
     <div
       className={cn(
-        "absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none",
-        inStrikeZone && "scale-110"
+        "absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none transition-transform duration-100",
+        scale
       )}
       style={{ left: `${left}%`, top: `${top}%` }}
     >
       <span
         className={cn(
-          "font-[family-name:var(--font-mono)] text-base font-semibold px-2 py-0.5 rounded-md inline-block whitespace-nowrap",
-          isActive
-            ? "bg-accent-cyan/20 border border-accent-cyan/40 text-white"
-            : inStrikeZone
-              ? "bg-white/10 text-text-primary"
-              : "text-text-secondary"
+          "font-[family-name:var(--font-mono)] text-base font-semibold px-2.5 py-1 rounded-lg inline-block whitespace-nowrap transition-all duration-100",
+          wordStyle
         )}
-        style={isActive ? { boxShadow: `0 0 12px ${LANE_GLOW_COLORS[word.lane]}` } : undefined}
+        style={glow}
       >
         {word.text.split("").map((char, i) => (
-          <span key={i} className={isActive && i < currentInput.length ? "text-accent-cyan" : ""}>
+          <span key={i} className={isActive && i < currentInput.length ? "text-accent-cyan font-bold" : ""}>
             {char}
           </span>
         ))}

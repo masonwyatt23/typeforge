@@ -15,7 +15,6 @@ import { FlowStateOverlay } from "@/components/effects/FlowStateOverlay";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Button } from "@/components/ui/Button";
 import { useGameStore } from "@/stores/game-store";
-import { useAudioStore } from "@/stores/audio-store";
 import { useAudio } from "@/hooks/use-audio";
 import { getRandomPassage, type PassageCategory } from "@/core/passages";
 import { useStatsStore } from "@/stores/stats-store";
@@ -23,7 +22,6 @@ import { getComboTier } from "@/core/typing-engine";
 import type { TypingResult } from "@/types/typing";
 import type { Passage } from "@/types/game";
 import { cn } from "@/lib/utils/cn";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
@@ -47,7 +45,6 @@ function PracticeContent() {
   const [aiCoachMessage, setAiCoachMessage] = useState<string | null>(null);
 
   const { wpm, accuracy, combo, progress, reset: resetStore } = useGameStore();
-  const { enabled: audioEnabled, toggle: toggleAudio } = useAudioStore();
   const { playSound } = useAudio();
   const recordGame = useStatsStore((s) => s.recordGame);
 
@@ -224,24 +221,6 @@ function PracticeContent() {
       {phase === "playing" && <FlowStateOverlay tier={comboTier} combo={combo} />}
 
       <ScreenShake>
-        {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 shrink-0">
-          <Link href="/" className="font-[family-name:var(--font-accent)] text-base font-bold tracking-wider hover:opacity-80 transition-opacity">
-            <span className="text-accent-cyan">TYPE</span>
-            <span className="text-text-primary">FORGE</span>
-          </Link>
-          <Button variant="ghost" size="sm" onClick={toggleAudio}>
-            {audioEnabled ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 9.75 19.5 12m0 0 2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6 4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-              </svg>
-            )}
-          </Button>
-        </header>
 
         {/* Main content - fixed height layout */}
         <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 min-h-0">

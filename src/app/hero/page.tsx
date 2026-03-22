@@ -8,9 +8,7 @@ import { ParticleCanvas } from "@/components/effects/ParticleCanvas";
 import { ScreenShake } from "@/components/effects/ScreenShake";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Button } from "@/components/ui/Button";
-import { Logo } from "@/components/brand/Logo";
 import { cn } from "@/lib/utils/cn";
-import Link from "next/link";
 
 type HeroMode = "word-drop" | "rhythm-type";
 type Phase = "select" | "playing" | "results";
@@ -64,16 +62,6 @@ export default function HeroPage() {
       <ParticleCanvas />
 
       <ScreenShake>
-        {/* Header */}
-        <header className="flex items-center justify-between px-6 py-4 shrink-0">
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <Logo size="sm" showIcon={false} />
-          </Link>
-          <span className="font-[family-name:var(--font-accent)] text-xs tracking-[0.3em] text-accent-purple font-bold">
-            HERO MODE
-          </span>
-        </header>
-
         <div className="flex-1 flex flex-col items-center justify-center px-4 md:px-8 min-h-0">
           <AnimatePresence mode="wait">
             {/* Mode select */}

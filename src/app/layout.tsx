@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Inter, Orbitron } from "next/font/google";
+import { NavBar } from "@/components/layout/NavBar";
 import "./globals.css";
 
 const inter = Inter({
@@ -50,6 +51,7 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} ${orbitron.variable} antialiased`}
       >
+        <NavBar />
         {children}
       </body>
     </html>
