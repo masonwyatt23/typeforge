@@ -21,20 +21,29 @@ interface UseTypingEngineOptions {
   onComplete?: (result: TypingResult) => void;
 }
 
+// Store both effects and combo from reducer result so dispatch can use post-action combo
+interface PendingEffects {
+  effects: TypingEffect[];
+  combo: number;
+}
+
 export function useTypingEngine(passage: string, options: UseTypingEngineOptions = {}) {
-  const pendingEffectsRef = useRef<TypingEffect[]>([]);
+  const pendingRef = useRef<PendingEffects>({ effects: [], combo: 0 });
 
   const [state, rawDispatch] = useReducer(
     (s: ReturnType<typeof createInitialState>, a: TypingAction) => {
       const result = typingEngineReducer(s, a);
-      // Store effects for processing
-      pendingEffectsRef.current = result.effects;
+      pendingRef.current = { effects: result.effects, combo: result.state.currentCombo };
       return result.state;
     },
     passage,
     createInitialState
   );
+
   const cursorElementRef = useRef<HTMLElement | null>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   const { playSound, initAudio } = useAudio();
   const { spawn } = useParticles();
   const { shake } = useScreenShake();
@@ -42,21 +51,22 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
   const onCompleteRef = useRef(options.onComplete);
   onCompleteRef.current = options.onComplete;
 
-  // WPM update interval
+  // WPM update interval — uses ref to avoid resetting interval on every keystroke
   useEffect(() => {
     if (!state.startTime || state.isComplete) return;
 
     const interval = setInterval(() => {
-      const wpm = getCurrentWpm(state, Date.now());
-      const progress = getProgress(state);
-      const accuracy = state.correctChars + state.incorrectChars > 0
-        ? state.correctChars / (state.correctChars + state.incorrectChars)
+      const s = stateRef.current;
+      const wpm = getCurrentWpm(s, Date.now());
+      const progress = getProgress(s);
+      const accuracy = s.correctChars + s.incorrectChars > 0
+        ? s.correctChars / (s.correctChars + s.incorrectChars)
         : 1;
-      updateStats(wpm, accuracy, state.currentCombo, state.maxCombo, progress);
+      updateStats(wpm, accuracy, s.currentCombo, s.maxCombo, progress);
     }, WPM_UPDATE_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [state.startTime, state.isComplete, state.correctChars, state.incorrectChars, state.currentCombo, state.maxCombo, updateStats, state]);
+  }, [state.startTime, state.isComplete, updateStats]);
 
   const getCursorPosition = useCallback((): { x: number; y: number } => {
     if (cursorElementRef.current) {
@@ -83,6 +93,7 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
             break;
 
           case "ERROR":
+          case "ERROR_MAXED":
             playSound("error");
             spawn("error", pos.x, pos.y);
             shake(SHAKE_INTENSITY.ERROR);
@@ -107,11 +118,10 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
             spawn("wordBurst", pos.x, pos.y, visuals.particleMultiplier * 0.5);
             break;
 
-          case "COMPLETE": {
+          case "COMPLETE":
             playSound("complete");
             spawn("confetti", window.innerWidth / 2, window.innerHeight / 3);
             break;
-          }
         }
       }
     },
@@ -120,21 +130,19 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
 
   const dispatch = useCallback(
     (action: TypingAction) => {
-      // Init audio on first user action
       initAudio();
-
       rawDispatch(action);
 
-      // Process effects after state update
+      // Use post-action combo from the reducer result (via ref) for correct tier effects
       requestAnimationFrame(() => {
-        const effects = pendingEffectsRef.current;
+        const { effects, combo } = pendingRef.current;
         if (effects.length > 0) {
-          processEffects(effects, state.currentCombo);
-          pendingEffectsRef.current = [];
+          processEffects(effects, combo);
+          pendingRef.current = { effects: [], combo: 0 };
         }
       });
     },
-    [initAudio, processEffects, state.currentCombo]
+    [initAudio, processEffects]
   );
 
   // Trigger onComplete when isComplete changes
@@ -146,7 +154,7 @@ export function useTypingEngine(passage: string, options: UseTypingEngineOptions
       onCompleteRef.current?.(result);
     }
     prevCompleteRef.current = state.isComplete;
-  }, [state.isComplete, state, updateStats]);
+  }, [state.isComplete, updateStats]);
 
   const reset = useCallback(
     (newPassage?: string) => {

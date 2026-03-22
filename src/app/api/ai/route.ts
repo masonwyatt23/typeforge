@@ -73,9 +73,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  let action = "";
   try {
     const body = await req.json();
-    const { action } = body;
+    action = body.action || "";
 
     switch (action) {
       case "generate_passage": {
@@ -118,7 +119,6 @@ export async function POST(req: NextRequest) {
 
     // Provide fallback responses when API key isn't set
     if (isApiKeyMissing) {
-      const { action } = await req.clone().json().catch(() => ({ action: "" }));
       if (action === "generate_passage") {
         return NextResponse.json({
           passage: "The art of typing is a dance between mind and fingers, where each keystroke brings ideas to life on the glowing screen before you.",

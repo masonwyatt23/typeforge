@@ -137,7 +137,8 @@ export class ParticleSystem {
     this.canvas.height = h * this.dpr;
     this.canvas.style.width = `${w}px`;
     this.canvas.style.height = `${h}px`;
-    this.ctx?.scale(this.dpr, this.dpr);
+    // Use setTransform instead of scale to avoid accumulation on repeated resizes
+    this.ctx?.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
   };
 
   spawn(presetName: string, x: number, y: number, rateMultiplier = 1): void {

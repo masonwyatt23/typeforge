@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 export function useScreenShake() {
   const frameRef = useRef<number | null>(null);
@@ -34,6 +34,17 @@ export function useScreenShake() {
     };
 
     frameRef.current = requestAnimationFrame(animate);
+  }, []);
+
+  // Cleanup on unmount — cancel animation and reset CSS vars
+  useEffect(() => {
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        document.documentElement.style.setProperty("--shake-x", "0px");
+        document.documentElement.style.setProperty("--shake-y", "0px");
+      }
+    };
   }, []);
 
   return { shake };
