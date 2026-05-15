@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const XAI_API_KEY = process.env.XAI_API_KEY;
 const XAI_API_URL = "https://api.x.ai/v1/chat/completions";
-const MODEL = "grok-4-1-fast-reasoning";
+const MODEL = "grok-4.3";
 
 // Simple in-memory rate limiter (per-instance, resets on deploy)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
